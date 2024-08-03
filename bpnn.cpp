@@ -1,3 +1,4 @@
+//g++ -g -o ./e bpnn.cpp
 #include <iostream>
 #include <cmath>
 #include <vector>
@@ -22,7 +23,6 @@ struct Node {
 };
 
 namespace utils {
-
     inline double sigmoid(double x) {
         double res = 1.0 / (1.0 + std::exp(-x));
         return res;
@@ -30,7 +30,6 @@ namespace utils {
 
     std::vector<double> getFileData(std::string filename) {
         std::vector<double> res;
-
         std::ifstream in(filename);
         if (in.is_open()) {
             while (!in.eof()) {
@@ -42,7 +41,6 @@ namespace utils {
         } else {
             std::cout << "Error in reading " << filename << std::endl;
         }
-
         return res;
     }
 
@@ -61,15 +59,12 @@ namespace utils {
             }
             res.push_back(tmp);
         }
-
         return res;
     }
 
     std::vector<Sample> getTestData(std::string filename) {
         std::vector<Sample> res;
-
         std::vector<double> buffer = getFileData(filename);
-
         for (size_t i = 0; i < buffer.size(); i += INNODE) {
             Sample tmp;
             for (size_t t = 0; t < INNODE; t++) {
@@ -77,216 +72,186 @@ namespace utils {
             }
             res.push_back(tmp);
         }
-
         return res;
     }
-
 }
 
 Node *inputLayer[INNODE], *hideLayer[HIDENODE], *outLayer[OUTNODE];
-
 inline void init() {
     std::mt19937 rd;
     rd.seed(std::random_device()());
-
     std::uniform_real_distribution<double> distribution(-1, 1);
-
     for (size_t i = 0; i < INNODE; i++) {
-        ::inputLayer[i] = new Node();
+        inputLayer[i] = new Node();
         for (size_t j = 0; j < HIDENODE; j++) {
-            ::inputLayer[i]->weight.push_back(distribution(rd));
-            ::inputLayer[i]->weight_delta.push_back(0.f);
+            inputLayer[i]->weight.push_back(distribution(rd));
+            inputLayer[i]->weight_delta.push_back(0.f);
         }
     }
 
     for (size_t i = 0; i < HIDENODE; i++) {
-        ::hideLayer[i] = new Node();
-        ::hideLayer[i]->bias = distribution(rd);
+        hideLayer[i] = new Node();
+        hideLayer[i]->bias = distribution(rd);
         for (size_t j = 0; j < OUTNODE; j++) {
-            ::hideLayer[i]->weight.push_back(distribution(rd));
-            ::hideLayer[i]->weight_delta.push_back(0.f);
+            hideLayer[i]->weight.push_back(distribution(rd));
+            hideLayer[i]->weight_delta.push_back(0.f);
         }
     }
 
     for (size_t i = 0; i < OUTNODE; i++) {
-        ::outLayer[i] = new Node();
-        ::outLayer[i]->bias = distribution(rd);
+        outLayer[i] = new Node();
+        outLayer[i]->bias = distribution(rd);
     }
-
 }
 
 inline void reset_delta() {
-
     for (size_t i = 0; i < INNODE; i++) {
-        ::inputLayer[i]->weight_delta.assign(::inputLayer[i]->weight_delta.size(), 0.f);
+        inputLayer[i]->weight_delta.assign(::inputLayer[i]->weight_delta.size(), 0.f);
     }
 
     for (size_t i = 0; i < HIDENODE; i++) {
-        ::hideLayer[i]->bias_delta = 0.f;
-        ::hideLayer[i]->weight_delta.assign(::hideLayer[i]->weight_delta.size(), 0.f);
+        hideLayer[i]->bias_delta = 0.f;
+        hideLayer[i]->weight_delta.assign(::hideLayer[i]->weight_delta.size(), 0.f);
     }
 
     for (size_t i = 0; i < OUTNODE; i++) {
-        ::outLayer[i]->bias_delta = 0.f;
+        outLayer[i]->bias_delta = 0.f;
     }
-
 }
-
+void dumpSamples(const std::vector<Sample>& sp) {
+    for(size_t i = 0; i < sp.size(); ++i) {
+        fprintf(stderr, "[%lu] ", i);
+        for(size_t j = 0; j < sp[i].in.size(); ++j) {
+            fprintf(stderr, " %.6lf", sp[i].in[j]);
+        }
+        fprintf(stderr, "    ");
+        for(size_t j = 0; j < sp[i].out.size(); ++j) {
+            fprintf(stderr, " %.6lf", sp[i].out[j]);
+        }
+        fprintf(stderr, "\n");
+    }
+}
 int main(int argc, char *argv[]) {
-
     init();
-
     std::vector<Sample> train_data = utils::getTrainData("traindata.txt");
+    fprintf(stderr, "dump train_data:\n");
+    dumpSamples(train_data);
 
     // training
     for (size_t times = 0; times < mosttimes; times++) {
-
         reset_delta();
-
         double error_max = 0.f;
-
         for (auto &idx : train_data) {
-
             for (size_t i = 0; i < INNODE; i++) {
-                ::inputLayer[i]->value = idx.in[i];
+                inputLayer[i]->value = idx.in[i];
             }
 
             // 正向传播
             for (size_t j = 0; j < HIDENODE; j++) {
                 double sum = 0;
                 for (size_t i = 0; i < INNODE; i++) {
-                    sum += ::inputLayer[i]->value * ::inputLayer[i]->weight[j];
+                    sum += inputLayer[i]->value * inputLayer[i]->weight[j];
                 }
-                sum -= ::hideLayer[j]->bias;
-
-                ::hideLayer[j]->value = utils::sigmoid(sum);
+                sum -= hideLayer[j]->bias;
+                hideLayer[j]->value = utils::sigmoid(sum);
             }
 
             for (size_t j = 0; j < OUTNODE; j++) {
                 double sum = 0;
                 for (size_t i = 0; i < HIDENODE; i++) {
-                    sum += ::hideLayer[i]->value * ::hideLayer[i]->weight[j];
+                    sum += hideLayer[i]->value * hideLayer[i]->weight[j];
                 }
-                sum -= ::outLayer[j]->bias;
-
-                ::outLayer[j]->value = utils::sigmoid(sum);
+                sum -= outLayer[j]->bias;
+                outLayer[j]->value = utils::sigmoid(sum);
             }
 
             // 计算误差
             double error = 0.f;
             for (size_t i = 0; i < OUTNODE; i++) {
-                double tmp = std::fabs(::outLayer[i]->value - idx.out[i]);
+                double tmp = std::fabs(outLayer[i]->value - idx.out[i]);
                 error += tmp * tmp / 2;
             }
-
             error_max = std::max(error_max, error);
 
             // 反向传播
-
             for (size_t i = 0; i < OUTNODE; i++) {
-                double bias_delta = -(idx.out[i] - ::outLayer[i]->value) *
-                        ::outLayer[i]->value * (1.0 - ::outLayer[i]->value);
-                ::outLayer[i]->bias_delta += bias_delta;
+                double bias_delta = -(idx.out[i] - outLayer[i]->value) * outLayer[i]->value * (1.0 - outLayer[i]->value);
+                outLayer[i]->bias_delta += bias_delta;
             }
-
             for (size_t i = 0; i < HIDENODE; i++) {
                 for (size_t j = 0; j < OUTNODE; j++) {
-                    double weight_delta = (idx.out[j] - ::outLayer[j]->value) *
-                            ::outLayer[j]->value * (1.0 - ::outLayer[j]->value) *
-                            ::hideLayer[i]->value;
-                    ::hideLayer[i]->weight_delta[j] += weight_delta;
+                    double weight_delta = (idx.out[j] - outLayer[j]->value) * outLayer[j]->value * (1.0 - outLayer[j]->value) * hideLayer[i]->value;
+                    hideLayer[i]->weight_delta[j] += weight_delta;
                 }
             }
 
             for (size_t i = 0; i < HIDENODE; i++) {
                 double sum = 0;
                 for (size_t j = 0; j < OUTNODE; j++) {
-                    sum += -(idx.out[j] - ::outLayer[j]->value) *
-                            ::outLayer[j]->value * (1.0 - ::outLayer[j]->value) *
-                            ::hideLayer[i]->weight[j];
+                    sum += -(idx.out[j] - outLayer[j]->value) * outLayer[j]->value * (1.0 - outLayer[j]->value) * hideLayer[i]->weight[j];
                 }
-                ::hideLayer[i]->bias_delta +=
-                        sum * ::hideLayer[i]->value * (1.0 - ::hideLayer[i]->value);
+                hideLayer[i]->bias_delta += sum * hideLayer[i]->value * (1.0 - hideLayer[i]->value);
             }
-
             for (size_t i = 0; i < INNODE; i++) {
                 for (size_t j = 0; j < HIDENODE; j++) {
                     double sum = 0.f;
                     for (size_t k = 0; k < OUTNODE; k++) {
-                        sum += (idx.out[k] - ::outLayer[k]->value) *
-                                ::outLayer[k]->value * (1.0 - ::outLayer[k]->value) *
-                                ::hideLayer[j]->weight[k];
+                        sum += (idx.out[k] - outLayer[k]->value) * outLayer[k]->value * (1.0 - outLayer[k]->value) * hideLayer[j]->weight[k];
                     }
-                    ::inputLayer[i]->weight_delta[j] +=
-                            sum *
-                            ::hideLayer[j]->value * (1.0 - ::hideLayer[j]->value) *
-                            ::inputLayer[i]->value;
+                    inputLayer[i]->weight_delta[j] += sum * hideLayer[j]->value * (1.0 - hideLayer[j]->value) * inputLayer[i]->value;
                 }
             }
-
         }
 
-        if (error_max < ::threshold) {
+        if (error_max < threshold) {
             std::cout << "Success with " << times + 1 << " times training." << std::endl;
             std::cout << "Maximum error: " << error_max << std::endl;
             break;
         }
 
         auto train_data_size = double(train_data.size());
-
         for (size_t i = 0; i < INNODE; i++) {
             for (size_t j = 0; j < HIDENODE; j++) {
-                ::inputLayer[i]->weight[j] +=
-                        rate * ::inputLayer[i]->weight_delta[j] / train_data_size;
+                inputLayer[i]->weight[j] += rate * inputLayer[i]->weight_delta[j] / train_data_size;
             }
         }
 
         for (size_t i = 0; i < HIDENODE; i++) {
-            ::hideLayer[i]->bias +=
-                    rate * ::hideLayer[i]->bias_delta / train_data_size;
+            hideLayer[i]->bias += rate * hideLayer[i]->bias_delta / train_data_size;
             for (size_t j = 0; j < OUTNODE; j++) {
-                ::hideLayer[i]->weight[j] +=
-                        rate * ::hideLayer[i]->weight_delta[j] / train_data_size;
+                hideLayer[i]->weight[j] += rate * hideLayer[i]->weight_delta[j] / train_data_size;
             }
         }
 
         for (size_t i = 0; i < OUTNODE; i++) {
-            ::outLayer[i]->bias +=
-                    rate * ::outLayer[i]->bias_delta / train_data_size;
+            outLayer[i]->bias += rate * outLayer[i]->bias_delta / train_data_size;
         }
-
     }
-
     std::vector<Sample> test_data = utils::getTestData("testdata.txt");
 
     // predict
     for (auto &idx : test_data) {
-
         for (size_t i = 0; i < INNODE; i++) {
-            ::inputLayer[i]->value = idx.in[i];
+            inputLayer[i]->value = idx.in[i];
         }
 
         for (size_t j = 0; j < HIDENODE; j++) {
             double sum = 0;
             for (size_t i = 0; i < INNODE; i++) {
-                sum += ::inputLayer[i]->value * inputLayer[i]->weight[j];
+                sum += inputLayer[i]->value * inputLayer[i]->weight[j];
             }
-            sum -= ::hideLayer[j]->bias;
-
-            ::hideLayer[j]->value = utils::sigmoid(sum);
+            sum -= hideLayer[j]->bias;
+            hideLayer[j]->value = utils::sigmoid(sum);
         }
 
         for (size_t j = 0; j < OUTNODE; j++) {
             double sum = 0;
             for (size_t i = 0; i < HIDENODE; i++) {
-                sum += ::hideLayer[i]->value * ::hideLayer[i]->weight[j];
+                sum += hideLayer[i]->value * hideLayer[i]->weight[j];
             }
-            sum -= ::outLayer[j]->bias;
-
-            ::outLayer[j]->value = utils::sigmoid(sum);
-
+            sum -= outLayer[j]->bias;
+            outLayer[j]->value = utils::sigmoid(sum);
             idx.out.push_back(::outLayer[j]->value);
-
             for (auto &tmp : idx.in) {
                 std::cout << tmp << " ";
             }
@@ -295,8 +260,6 @@ int main(int argc, char *argv[]) {
             }
             std::cout << std::endl;
         }
-
     }
-
     return 0;
 }
