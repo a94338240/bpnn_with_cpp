@@ -46,7 +46,6 @@ namespace utils {
 
     std::vector<Sample> getTrainData(std::string filename) {
         std::vector<Sample> res;
-
         std::vector<double> buffer = getFileData(filename);
 
         for (size_t i = 0; i < buffer.size(); i += INNODE + OUTNODE) {
