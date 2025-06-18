@@ -193,7 +193,7 @@ int main(int argc, char *argv[]) {
                 }
                 hideLayer[i]->bias_delta += sum * hideLayer[i]->value * (1.0 - hideLayer[i]->value);
             }
-            //计算delta omega
+            //计算delta omega， 可以看出这个参数omega是设计在输入层节点中的
             for (size_t i = 0; i < INNODE; i++) {
                 for (size_t j = 0; j < HIDENODE; j++) {
                     double sum = 0.f;
