@@ -173,17 +173,19 @@ int main(int argc, char *argv[]) {
             error_max = std::max(error_max, error);
 
             // 反向传播
+            //计算 delta lambda
             for (size_t i = 0; i < OUTNODE; i++) {
                 double bias_delta = -(idx.out[i] - outLayer[i]->value) * outLayer[i]->value * (1.0 - outLayer[i]->value);
                 outLayer[i]->bias_delta += bias_delta;
             }
+            //计算delta vi， 可以看出这个参数v是设计在隐藏层节点中的
             for (size_t i = 0; i < HIDENODE; i++) {
                 for (size_t j = 0; j < OUTNODE; j++) {
                     double weight_delta = (idx.out[j] - outLayer[j]->value) * outLayer[j]->value * (1.0 - outLayer[j]->value) * hideLayer[i]->value;
                     hideLayer[i]->weight_delta[j] += weight_delta;
                 }
             }
-
+            //计算 delta beta i 
             for (size_t i = 0; i < HIDENODE; i++) {
                 double sum = 0;
                 for (size_t j = 0; j < OUTNODE; j++) {
@@ -191,6 +193,7 @@ int main(int argc, char *argv[]) {
                 }
                 hideLayer[i]->bias_delta += sum * hideLayer[i]->value * (1.0 - hideLayer[i]->value);
             }
+            //计算delta omega
             for (size_t i = 0; i < INNODE; i++) {
                 for (size_t j = 0; j < HIDENODE; j++) {
                     double sum = 0.f;
